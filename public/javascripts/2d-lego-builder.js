@@ -20,6 +20,10 @@ var BRICK_DEFAULT_STYLE = Object.freeze({
   fillColor: '#fff',
   strokeColor: '#000'
 });
+var BRICK_DISABLED_STYLE = Object.freeze({
+  fillColor: new Color(1, 1, 1, 0.2),
+  strokeColor: '#500'
+});
 var BRICK_MOUSE_ENTER_STYLE = Object.freeze({
   fillColor: '#fff',
   strokeColor: '#f00'
@@ -55,10 +59,16 @@ $(document).ready(function(){
 
   // setup global variables
   var bricksMap=[];
+  var bricksConnection=[];
+  var bricksConnectionNum = 0;
+  var bricksConnectionStat;
+  var maxBricksConnectionNum;
   for(var i=0; i < MESH_NUM_H; i++){
     bricksMap.push([]);
+    bricksConnection.push([]);
     for(var j=0; j < MESH_NUM_W; j++){
       bricksMap[i].push(BrickStateEnum.EMPTY);
+      bricksConnection[i].push(0);
     }
   }
 
@@ -169,6 +179,62 @@ $(document).ready(function(){
     return true;
   }
 
+  function markConnection(){
+    //initialize
+    bricksConnectionStat = [];
+    bricksConnectionNum = 0;
+    for(var i=0; i < MESH_NUM_H; i++){
+      for(var j=0; j < MESH_NUM_W; j++){
+        bricksConnection[i][j] = 0;
+      }
+    }
+
+    function _markConnection(x, y){
+      if(x < 0 || x >= MESH_NUM_W || y < 0 || y >= MESH_NUM_H){
+        return;
+      }
+      if(bricksMap[y][x] == BrickStateEnum.EMPTY || bricksConnection[y][x] !== 0){
+        return;
+      }
+      bricksConnection[y][x] = bricksConnectionNum;
+      if(bricksMap[y][x] != BrickStateEnum.LEFT_SIDE){
+        _markConnection(x-1, y);
+      }
+      _markConnection(x, y-1);
+      _markConnection(x, y+1);
+      if(bricksMap[y][x] != BrickStateEnum.RIGHT_SIDE){
+        _markConnection(x+1, y);
+      }
+    }
+
+    for(var y=0; y < MESH_NUM_H; y++){
+      for(var x=0; x < MESH_NUM_W; x++){
+        if(bricksConnection[y][x] === 0 && bricksMap[y][x] != BrickStateEnum.EMPTY){
+          bricksConnectionNum++;
+          bricksConnectionStat.push(0);
+          _markConnection(x, y);
+        }
+      }
+    }
+
+    // make stat
+    for(var y=0; y < MESH_NUM_H; y++){
+      for(var x=0; x < MESH_NUM_W; x++){
+        if(bricksConnection[y][x] !== 0){
+          bricksConnectionStat[bricksConnection[y][x] - 1]++;
+        }
+      }
+    }
+    maxBricksConnectionNum = 0;
+    var maxStat = -1;
+    for(var i=0; i < bricksConnectionNum; i++){
+      if(bricksConnectionStat[i] > maxStat){
+        maxStat = bricksConnectionStat[i];
+        maxBricksConnectionNum = i+1; // to make 1 base, not 0
+      }
+    }
+  }
+
   function drawBricksMapValue(){
     overlayLayer.activate();
     overlayLayer.removeChildren();
@@ -183,13 +249,27 @@ $(document).ready(function(){
     }
   }
 
+  function drawBricksConnectionValue(){
+    overlayLayer.activate();
+    overlayLayer.removeChildren();
+    var l = calcMeshSize();
+    for(var i=0; i < MESH_NUM_H; i++){
+      for(var j=0; j < MESH_NUM_W; j++){
+        var text = new PointText(new Point(j*l + l/2, (MESH_NUM_H - i - 1)*l + l/2));
+        text.justification = 'center';
+        text.fillColor = 'red';
+        text.content = '' + bricksConnection[i][j];
+      }
+    }
+  }
+
   function drawBrick(x, y, size){
     // event handlers
     var onMouseEnterFunc = function(event){
       this.style = BRICK_MOUSE_ENTER_STYLE;
     };
     var onMouseLeaveFunc = function(event){
-      this.style = BRICK_DEFAULT_STYLE;
+      this.style = this.default_style;
     };
     var onClickFunc = function(event){
       switch(event.event.button){
@@ -209,16 +289,14 @@ $(document).ready(function(){
     var onMouseDownFunc = function(event){
       this.opacity = BRICK_DRAG_STYLE;
       this.opacity = BRICK_DRAG_OPACITY;
-      // console.log(this.position.x);
-      // console.log(event.point.x);
       dragOffset = new Point(event.point.x - this.position.x, event.point.y - this.position.y);
-      // console.log(dragOffset);
+      this.bringToFront();
     };
     var onMouseDragFunc = function(event){
       this.position = new Point(event.point.x - dragOffset.x, event.point.y - dragOffset.y);
     };
     var onMouseUpFunc = function(event){
-      this.style = BRICK_DEFAULT_STYLE;
+      this.style = this.default_style;
       this.opacity = BRICK_DEFAULT_OPACITY;
       var x, y;
       var l = calcMeshSize();
@@ -248,7 +326,12 @@ $(document).ready(function(){
     brickGroupArray.push(path);
     var brickGroup = new Group(brickGroupArray);
     brickGroup.brickInfo = {x: x, y: y, size: size};
-    brickGroup.style = BRICK_DEFAULT_STYLE;
+    if(bricksConnection[y][x] == maxBricksConnectionNum){
+      brickGroup.default_style = BRICK_DEFAULT_STYLE;
+    }else{
+      brickGroup.default_style = BRICK_DISABLED_STYLE;
+    }
+    brickGroup.style = brickGroup.default_style;
     brickGroup.translate(x*l, (MESH_NUM_H-y-1)*l);
     brickGroup.onMouseEnter = onMouseEnterFunc;
     brickGroup.onMouseLeave = onMouseLeaveFunc;
@@ -266,6 +349,8 @@ $(document).ready(function(){
     var l = calcMeshSize();
     meshLayer.activate();
     meshMousePoint = event.point;
+    if(meshDragPath)
+      meshDragPath.remove();
     meshDragPath = new Path.Rectangle(Math.floor(event.point.x / l) * l,
                                       Math.floor(event.point.y / l) * l,
                                       l, l);
@@ -277,10 +362,39 @@ $(document).ready(function(){
     meshLayer.activate();
     meshDragPath.remove();
     var dw = Math.floor(event.point.x / l) < Math.floor(meshMousePoint.x / l) ? l : 0;
-    meshDragPath = new Path.Rectangle(Math.floor(meshMousePoint.x / l) * l + dw,
-                                      Math.floor(meshMousePoint.y / l) * l,
-                                      (Math.floor(event.point.x / l) - Math.floor(meshMousePoint.x / l) + 1)*l - dw*2,
-                                      l);
+    var width = (Math.floor(event.point.x / l) - Math.floor(meshMousePoint.x / l) + 1)*l - dw*2;
+    var width_sign = width < 0 ? -1 : 1;
+    var width_num = Math.round(Math.abs(width/l));
+    if(width_num > Math.max.apply(null, BrickLength)){
+      width_num = 6;
+    }else{
+      for(var i=0; i<BrickLength.length; i++){
+        if(width_num == BrickLength[i]){
+          break;
+        }else{
+          if(width_num > BrickLength[i]){
+            continue;
+          }else{
+            if(i === 0){
+              width_num = BrickLength[i];
+            }else{
+              width_num = ( width_num < (BrickLength[i-1]+BrickLength[i])/2) ? BrickLength[i-1] : BrickLength[i];
+            }
+            break;
+          }
+        }
+      }
+    }
+    meshDragPath = new Path.Rectangle(
+      Math.floor(meshMousePoint.x / l) * l + dw,
+      Math.floor(meshMousePoint.y / l) * l,
+      width_sign * width_num * l,
+      l);
+    meshDragPath.brickInfo = {
+      x: width_sign > 0 ? Math.floor(meshMousePoint.x / l) : Math.floor(meshMousePoint.x / l) - width_num + 1,
+      y: Math.floor(meshMousePoint.y / l),
+      size: width_num
+    };
     if(Math.floor(meshMousePoint.y / l) == Math.floor(event.point.y / l)){
       meshDragPath.style = DRAG_EMPTY_STYLE;
     }else{
@@ -290,18 +404,20 @@ $(document).ready(function(){
   };
 
   meshLayer.onMouseUp = function(event){
-    meshDragPath.remove();
     var l = calcMeshSize();
-    // console.log(event);
+    console.log(event);
     var x0 = Math.floor(event.point.x / l);
     var y0 = Math.floor(event.point.y / l);
     var x1 = Math.floor(meshMousePoint.x / l);
     var y1 = Math.floor(meshMousePoint.y / l);
-    if(y0 != y1) return;
-    var x = Math.min(x0, x1);
-    var y = y0;
-    var size = Math.max(x0, x1) - x + 1;
+    if(y0 != y1){
+      return;
+    }
+    var x = meshDragPath.brickInfo.x;
+    var y = meshDragPath.brickInfo.y;
+    var size = meshDragPath.brickInfo.size;
     writeBrickInMap(x, (MESH_NUM_H - y - 1), size);
+    meshDragPath.remove();
     update();
   };
 
@@ -312,7 +428,9 @@ $(document).ready(function(){
 
   function update() {
     console.log('updated at', (new Date()).toLocaleTimeString());
+    markConnection();
     drawBricksFromMap();
+    // drawBricksConnectionValue();
     // drawBricksMapValue();
   }
 

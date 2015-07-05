@@ -43,6 +43,18 @@ var BRICK_DRAG_STYLE = Object.freeze({
 var BRICK_DRAG_OPACITY = 0.5;
 var BRICK_EMPTY_OPACITY = 0.5;
 var UI_TEXT_COLOR = '#fff';
+var UI_BUTTON_DEFAULT_STYLE = Object.freeze({
+  fillColor: new Color(0.7, 0, 0),
+  strokeColor: new Color(0.5, 0.5, 0.5)
+});
+var UI_BUTTON_HOVER_STYLE = Object.freeze({
+  fillColor: new Color(1, 0, 0),
+  strokeColor: new Color(0.5, 0.5, 0.5)
+});
+var UI_BUTTON_ACTIVE_STYLE = Object.freeze({
+  fillColor: new Color(1, 0, 0),
+  strokeColor: new Color(1, 1, 1)
+});
 
 // enums
 var BrickStateEnum = Object.freeze({EMPTY: 0, LEFT_SIDE: 1,RIGHT_SIDE: 2, BODY: 3});
@@ -122,6 +134,54 @@ $(document).ready(function(){
       content: 'x ' + (MaxBricksNum[6] - currentBricksNum[6]),
       fillColor: UI_TEXT_COLOR
     });
+
+    drawClearButton();
+  }
+
+  function drawClearButton(){
+    var onMouseEnterFunc = function(event){
+      this.children['rect'].style = UI_BUTTON_HOVER_STYLE;
+    };
+    var onMouseLeaveFunc = function(event){
+      this.children['rect'].style = UI_BUTTON_DEFAULT_STYLE;
+    };
+    var onMouseDownFunc = function(event){
+      this.children['rect'].style = UI_BUTTON_ACTIVE_STYLE;
+    };
+    var onMouseUpFunc = function(event){
+      this.children['rect'].style = UI_BUTTON_HOVER_STYLE;
+      brickBodyLayer.activate();
+      brickBodyLayer.removeChildren();
+      for(var y=0; y < MESH_NUM_H; y++){
+        for(var x=0; x < MESH_NUM_W; x++){
+          bricksMap[y][x] = BrickStateEnum.EMPTY;
+        }
+      }
+    };
+
+    bgLayer.activate();
+    var btn_width = 4;
+    var l = calcMeshSize();
+    var btn_x, btn_y, btn_w, btn_h;
+    btn_x = (MESH_NUM_W - btn_width - 1)*l;
+    btn_y = (MESH_NUM_H + 2)*l;
+    btn_w = btn_width * l;
+    btn_h = l;
+    var clearButtonRect = new Path.Rectangle(btn_x, btn_y, btn_w, btn_h);
+    clearButtonRect.name = 'rect';
+    var clearButtonLabel = new PointText({
+      point: [btn_x + btn_w/2, btn_y + btn_h / 2 + 5],
+      content: 'Clear',
+      justification: 'center',
+      fillColor: 'white'
+    });
+    clearButtonLabel.name = 'label';
+    var clearButton = new Group([clearButtonRect, clearButtonLabel]);
+    clearButton.children['rect'].style = UI_BUTTON_DEFAULT_STYLE;
+    clearButton.onMouseEnter = onMouseEnterFunc;
+    clearButton.onMouseLeave = onMouseLeaveFunc;
+    clearButton.onMouseDown = onMouseDownFunc;
+    clearButton.onMouseUp = onMouseUpFunc;
   }
 
   function updateUI(){

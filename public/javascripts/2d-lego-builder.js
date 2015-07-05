@@ -6,9 +6,16 @@ paper.install(window);
 // general consts
 var MESH_NUM_W= 30;
 var MESH_NUM_H = 20;
+var CONTROL_PANE_H = 300;
 
 // style
 var MESH_COLOR = '#666';
+var MESH_SQUARE_DEFAULT_STYLE = Object.freeze({
+  fillColor: new Color(0, 0, 0, 0)
+});
+var MESH_SQUARE_HOVER_STYLE = Object.freeze({
+  fillColor: new Color(1, 1, 1, 0.2)
+});
 var DRAG_EMPTY_STYLE = Object.freeze({
   fillColor: '#555'
 });
@@ -34,11 +41,17 @@ var BRICK_DRAG_STYLE = Object.freeze({
   strokeColor: '#000'
 });
 var BRICK_DRAG_OPACITY = 0.5;
+var BRICK_EMPTY_OPACITY = 0.5;
+var UI_TEXT_COLOR = '#fff';
 
 // enums
 var BrickStateEnum = Object.freeze({EMPTY: 0, LEFT_SIDE: 1,RIGHT_SIDE: 2, BODY: 3});
 var BrickLength = Object.freeze([2, 3, 4, 6]);
 var MouseClickButtonEnum = Object.freeze({LEFT: 0, RIGHT: 2});
+var MaxBricksNum = Object.freeze({2:6, 3:6, 4:4, 6:4});
+var currentBricksNum = {2:0, 3:0, 4:0, 6:0};
+var controlBricks = {2:null, 3:null, 4:null, 6:null};
+var controlBricksNum = {2:null, 3:null, 4:null, 6:null};
 
 $(document).ready(function(){
   // setup canvas
@@ -74,25 +87,70 @@ $(document).ready(function(){
 
   function calcMeshSize(){
     var w = $('#myCanvas').width() / MESH_NUM_W;
-    var h = $('#myCanvas').height() / MESH_NUM_H;
+    var h = ($('#myCanvas').height()-CONTROL_PANE_H) / MESH_NUM_H;
     var l = Math.min(w, h);
     return l;
+  }
+
+  function drawUI(){
+    var l = calcMeshSize();
+    bgLayer.activate();
+    // generate bricks
+    var yOffsets = [-3, -5];
+    controlBricks[2] = drawBrick(1, yOffsets[0], 2, true);
+    controlBricks[3] = drawBrick(1, yOffsets[1], 3, true);
+    controlBricks[4] = drawBrick(6, yOffsets[0], 4, true);
+    controlBricks[6] = drawBrick(6, yOffsets[1], 6, true);
+    // generate brikcs num indicator
+    controlBricksNum[2] = new PointText({
+      point: [3.5 * l, (MESH_NUM_H - yOffsets[0] -1)*l + l/2],
+      content: 'x ' + (MaxBricksNum[2] - currentBricksNum[2]),
+      fillColor: UI_TEXT_COLOR
+    });
+    controlBricksNum[3] = new PointText({
+      point: [4.5 * l, (MESH_NUM_H - yOffsets[1] -1)*l + l/2],
+      content: 'x ' + (MaxBricksNum[3] - currentBricksNum[3]),
+      fillColor: UI_TEXT_COLOR
+    });
+    controlBricksNum[4] = new PointText({
+      point: [10.5 * l, (MESH_NUM_H - yOffsets[0] -1)*l + l/2],
+      content: 'x ' + (MaxBricksNum[4] - currentBricksNum[4]),
+      fillColor: UI_TEXT_COLOR
+    });
+    controlBricksNum[6] = new PointText({
+      point: [12.5 * l, (MESH_NUM_H - yOffsets[1] -1)*l + l/2],
+      content: 'x ' + (MaxBricksNum[6] - currentBricksNum[6]),
+      fillColor: UI_TEXT_COLOR
+    });
+  }
+
+  function updateUI(){
+    countCurrentBricksNum();
+    BrickLength.forEach(function(elm, index){
+      var left_num = MaxBricksNum[elm] - currentBricksNum[elm];
+      controlBricksNum[elm].content = 'x ' + left_num;
+      if(left_num === 0){
+        controlBricks[elm].opacity = BRICK_EMPTY_OPACITY;
+      }else{
+        controlBricks[elm].opacity = BRICK_DEFAULT_OPACITY;
+      }
+    });
   }
 
   function drawMesh(){
     meshLayer.activate();
     var l = calcMeshSize();
     var onMouseEnterFunc = function(event){
-      this.fillColor = '#222';
+      this.style = MESH_SQUARE_HOVER_STYLE;
     };
     var onMouseLeaveFunc = function(event){
-      this.fillColor = 'black';
+      this.style = MESH_SQUARE_DEFAULT_STYLE;
     };
 
     for(var i=0; i< MESH_NUM_W; i++){
       for(var j=0; j< MESH_NUM_H; j++){
         var path = new Path.Rectangle(i*l, j*l, l, l);
-        path.fillColor = 'black';
+        path.style = MESH_SQUARE_DEFAULT_STYLE;
         path.onMouseEnter = onMouseEnterFunc;
         path.onMouseLeave = onMouseLeaveFunc;
       }
@@ -263,7 +321,8 @@ $(document).ready(function(){
     }
   }
 
-  function drawBrick(x, y, size){
+  function drawBrick(x, y, size, isPlain){
+    isPlain = typeof isPlain !== 'undefined' ? isPlain : false;
     // event handlers
     var onMouseEnterFunc = function(event){
       this.style = BRICK_MOUSE_ENTER_STYLE;
@@ -310,7 +369,7 @@ $(document).ready(function(){
     };
 
     // draw brick
-    brickStudLayer.activate();
+    // brickStudLayer.activate();
     var l = calcMeshSize();
     var brickGroupArray = [];
     for(var i=0; i<size; i++){
@@ -321,25 +380,58 @@ $(document).ready(function(){
                                    );
       brickGroupArray.push(path);
     }
-    brickBodyLayer.activate();
+    if(isPlain){
+      bgLayer.activate();
+    }else{
+      brickBodyLayer.activate();
+    }
     var path = new Path.Rectangle(0, 0, l*size, l);
     brickGroupArray.push(path);
     var brickGroup = new Group(brickGroupArray);
     brickGroup.brickInfo = {x: x, y: y, size: size};
-    if(bricksConnection[y][x] == maxBricksConnectionNum){
+    if(isPlain){
       brickGroup.default_style = BRICK_DEFAULT_STYLE;
     }else{
-      brickGroup.default_style = BRICK_DISABLED_STYLE;
+      if(bricksConnection[y][x] == maxBricksConnectionNum){
+        brickGroup.default_style = BRICK_DEFAULT_STYLE;
+      }else{
+        brickGroup.default_style = BRICK_DISABLED_STYLE;
+      }
     }
     brickGroup.style = brickGroup.default_style;
     brickGroup.translate(x*l, (MESH_NUM_H-y-1)*l);
-    brickGroup.onMouseEnter = onMouseEnterFunc;
-    brickGroup.onMouseLeave = onMouseLeaveFunc;
-    brickGroup.onClick = onClickFunc;
-    brickGroup.onMouseUp = onMouseUpFunc;
-    brickGroup.onMouseDrag = onMouseDragFunc;
-    brickGroup.onMouseDown = onMouseDownFunc;
+    if(!isPlain){
+      brickGroup.onMouseEnter = onMouseEnterFunc;
+      brickGroup.onMouseLeave = onMouseLeaveFunc;
+      brickGroup.onClick = onClickFunc;
+      brickGroup.onMouseUp = onMouseUpFunc;
+      brickGroup.onMouseDrag = onMouseDragFunc;
+      brickGroup.onMouseDown = onMouseDownFunc;
+    }
     return brickGroup;
+  }
+
+  function countCurrentBricksNum(){
+    var size = 0;
+    currentBricksNum = {2:0, 3:0, 4:0, 6:0};
+    for(var y=0; y < MESH_NUM_H; y++){
+      for(var x=0; x < MESH_NUM_W; x++){
+        switch(bricksMap[y][x]){
+          case BrickStateEnum.LEFT_SIDE:
+            size = 1;
+            break;
+          case BrickStateEnum.BODY:
+            size++;
+            break;
+          case BrickStateEnum.RIGHT_SIDE:
+            size++;
+            currentBricksNum[size]++;
+            break;
+          default:
+            break;
+        }
+      }
+    }
   }
 
   var meshMousePoint = new Point();
@@ -416,7 +508,9 @@ $(document).ready(function(){
     var x = meshDragPath.brickInfo.x;
     var y = meshDragPath.brickInfo.y;
     var size = meshDragPath.brickInfo.size;
-    writeBrickInMap(x, (MESH_NUM_H - y - 1), size);
+    if(MaxBricksNum[size] - currentBricksNum[size] > 0){
+      writeBrickInMap(x, (MESH_NUM_H - y - 1), size);
+    }
     meshDragPath.remove();
     update();
   };
@@ -430,11 +524,13 @@ $(document).ready(function(){
     console.log('updated at', (new Date()).toLocaleTimeString());
     markConnection();
     drawBricksFromMap();
+    updateUI();
     // drawBricksConnectionValue();
     // drawBricksMapValue();
   }
 
   drawMesh();
+  drawUI();
 
   view.onFrame = function(event){
   };

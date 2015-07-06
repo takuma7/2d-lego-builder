@@ -3,6 +3,17 @@ document.oncontextmenu = document.body.oncontextmenu = function() {return false;
 // install paper.js object globally
 paper.install(window);
 
+// sounds
+var clickSoundPlayer = new Audio('/audio/click.mp3');
+var popSoundPlayer = new Audio('/audio/pop.mp3');
+var whishSoundPlayer = new Audio('/audio/footstep.mp3');
+var woobSoundPlayer = new Audio('/audio/woob.mp3');
+
+function printError(message){
+  console.error(message);
+  woobSoundPlayer.play();
+}
+
 // general consts
 var MESH_NUM_W= 30;
 var MESH_NUM_H = 20;
@@ -157,6 +168,8 @@ $(document).ready(function(){
           bricksMap[y][x] = BrickStateEnum.EMPTY;
         }
       }
+      popSoundPlayer.play();
+      update();
     };
 
     bgLayer.activate();
@@ -283,12 +296,16 @@ $(document).ready(function(){
   }
 
   function isBrickPlaceableTo(x, y, size, _x, _y, _size){
+    if( x < 0 || x+size > MESH_NUM_W || y < 0 || y+size > MESH_NUM_H){
+      console.error('out of bounds');
+      return false;
+    }
     for(var i=x; i < x+size; i++){
       if(bricksMap[y][i] != BrickStateEnum.EMPTY){
         if(_x !== undefined && _y !== undefined && _size !== undefined && y == _y && _x <= i && i < _x + _size){
             continue;
         }else{
-          console.log('not placeable to (' + x + ', ' + y + ')');
+          console.error('not placeable to (' + x + ', ' + y + ')');
           return false;
         }
       }
@@ -353,6 +370,110 @@ $(document).ready(function(){
     }
   }
 
+  function moveBricksUp(){
+    console.log('moving up');
+    for(var x=0; x < MESH_NUM_W; x++){
+      if(bricksMap[MESH_NUM_H - 1][x] != BrickStateEnum.EMPTY){
+        printError('cannot move up any more');
+        return false;
+      }
+    }
+    for(var y=MESH_NUM_H - 1; y > 0; y--){
+      for(var x=0; x < MESH_NUM_W; x++){
+        bricksMap[y][x] = bricksMap[y-1][x];
+      }
+    }
+    for(var x=0; x < MESH_NUM_W; x++){
+      bricksMap[0][x] = BrickStateEnum.EMPTY;
+    }
+    return true;
+  }
+  function moveBricksDown(){
+    console.log('moving down');
+    for(var x=0; x < MESH_NUM_W; x++){
+      if(bricksMap[0][x] != BrickStateEnum.EMPTY){
+        printError('cannot move down any more');
+        return false;
+      }
+    }
+    for(var y=0; y < MESH_NUM_H - 1; y++){
+      for(var x=0; x < MESH_NUM_W; x++){
+        bricksMap[y][x] = bricksMap[y+1][x];
+      }
+    }
+    for(var x=0; x < MESH_NUM_W; x++){
+      bricksMap[MESH_NUM_H - 1][x] = BrickStateEnum.EMPTY;
+    }
+    return true;
+  }
+  function moveBricksLeft(){
+    console.log('moving to left');
+    for(var y=0; y < MESH_NUM_H; y++){
+      if(bricksMap[y][0] != BrickStateEnum.EMPTY){
+        printError('cannot move left any more');
+        return false;
+      }
+    }
+    for(var x=0; x < MESH_NUM_W - 1; x++){
+      for(var y=0; y < MESH_NUM_H; y++){
+        bricksMap[y][x] = bricksMap[y][x+1];
+      }
+    }
+    for(var y=0; y < MESH_NUM_H; y++){
+      bricksMap[y][MESH_NUM_W - 1] = BrickStateEnum.EMPTY;
+    }
+    return true;
+  }
+  function moveBricksRight(){
+    console.log('moving to right');
+    for(var y=0; y < MESH_NUM_H; y++){
+      if(bricksMap[y][MESH_NUM_W - 1] != BrickStateEnum.EMPTY){
+        printError('cannot move right any more');
+        return false;
+      }
+    }
+    for(var x=MESH_NUM_W - 1; x > 0; x--){
+      for(var y=0; y < MESH_NUM_H; y++){
+        bricksMap[y][x] = bricksMap[y][x-1];
+      }
+    }
+    for(var y=0; y < MESH_NUM_H; y++){
+      bricksMap[y][0] = BrickStateEnum.EMPTY;
+    }
+    return true;
+  }
+
+  var ar=new Array(33,34,35,36,37,38,39,40);
+
+  $(document).on('keydown', function(event){
+    console.log(event.keyCode);
+    switch(event.keyCode){
+      case 37:
+        moveBricksLeft();
+        update();
+        break;
+      case 38:
+        moveBricksUp();
+        update();
+        break;
+      case 39:
+        moveBricksRight();
+        update();
+        break;
+      case 40:
+        moveBricksDown();
+        update();
+        break;
+    }
+    var key = event.which;
+    //console.log(key);
+    //if(key==35 || key == 36 || key == 37 || key == 39)
+    if($.inArray(key,ar) > -1) {
+      event.preventDefault();
+      return false;
+    }
+  });
+
   function drawBricksMapValue(){
     overlayLayer.activate();
     overlayLayer.removeChildren();
@@ -396,6 +517,7 @@ $(document).ready(function(){
           console.log(this);
           removeBrickFromMap(this.brickInfo.x, this.brickInfo.y);
           this.remove();
+          popSoundPlayer.play();
           update();
           break;
         case MouseClickButtonEnum.LEFT:
@@ -406,26 +528,43 @@ $(document).ready(function(){
     };
     var dragOffset;
     var onMouseDownFunc = function(event){
-      this.opacity = BRICK_DRAG_STYLE;
-      this.opacity = BRICK_DRAG_OPACITY;
-      dragOffset = new Point(event.point.x - this.position.x, event.point.y - this.position.y);
-      this.bringToFront();
+      switch(event.event.button){
+        case MouseClickButtonEnum.RIGHT:
+          break;
+        case MouseClickButtonEnum.LEFT:
+          this.opacity = BRICK_DRAG_STYLE;
+          this.opacity = BRICK_DRAG_OPACITY;
+          dragOffset = new Point(event.point.x - this.position.x, event.point.y - this.position.y);
+          this.bringToFront();
+          break;
+        default:
+          break;
+      }
     };
     var onMouseDragFunc = function(event){
       this.position = new Point(event.point.x - dragOffset.x, event.point.y - dragOffset.y);
     };
     var onMouseUpFunc = function(event){
-      this.style = this.default_style;
-      this.opacity = BRICK_DEFAULT_OPACITY;
-      var x, y;
-      var l = calcMeshSize();
-      x = Math.round((this.position.x - this.bounds.width/2) / l);
-      y = MESH_NUM_H - Math.floor(this.position.y / l) - 1;
-      if(isBrickPlaceableTo(x, y, this.brickInfo.size, this.brickInfo.x, this.brickInfo.y, this.brickInfo.size)){
-        removeBrickFromMap(this.brickInfo.x, this.brickInfo.y);
-        writeBrickInMap(x, y, this.brickInfo.size);
+      switch(event.event.button){
+        case MouseClickButtonEnum.RIGHT:
+          break;
+        case MouseClickButtonEnum.LEFT:
+          this.style = this.default_style;
+          this.opacity = BRICK_DEFAULT_OPACITY;
+          var x, y;
+          var l = calcMeshSize();
+          x = Math.round((this.position.x - this.bounds.width/2) / l);
+          y = MESH_NUM_H - Math.floor(this.position.y / l) - 1;
+          if(isBrickPlaceableTo(x, y, this.brickInfo.size, this.brickInfo.x, this.brickInfo.y, this.brickInfo.size)){
+            removeBrickFromMap(this.brickInfo.x, this.brickInfo.y);
+            writeBrickInMap(x, y, this.brickInfo.size);
+          }
+          clickSoundPlayer.play();
+          update();
+          break;
+        default:
+          break;
       }
-      update();
     };
 
     // draw brick
@@ -563,13 +702,18 @@ $(document).ready(function(){
     var x1 = Math.floor(meshMousePoint.x / l);
     var y1 = Math.floor(meshMousePoint.y / l);
     if(y0 != y1){
+      printError('starting y and ending y not match');
+      meshDragPath.remove();
       return;
     }
     var x = meshDragPath.brickInfo.x;
     var y = meshDragPath.brickInfo.y;
     var size = meshDragPath.brickInfo.size;
     if(MaxBricksNum[size] - currentBricksNum[size] > 0){
+      whishSoundPlayer.play();
       writeBrickInMap(x, (MESH_NUM_H - y - 1), size);
+    }else{
+      printError('out of bricks: ' + size);
     }
     meshDragPath.remove();
     update();

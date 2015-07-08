@@ -20,9 +20,10 @@ var MESH_NUM_H = 20;
 var CONTROL_PANE_H = 300;
 
 // style
-var MESH_COLOR = '#666';
+var MESH_COLOR = '#696';
 var MESH_SQUARE_DEFAULT_STYLE = Object.freeze({
   fillColor: new Color(0, 0, 0, 0)
+  // fillColor: '#007B28'
 });
 var MESH_SQUARE_HOVER_STYLE = Object.freeze({
   fillColor: new Color(1, 1, 1, 0.2)
@@ -33,7 +34,7 @@ var DRAG_EMPTY_STYLE = Object.freeze({
 var DRAG_EMPTY_DANGER_STYLE = Object.freeze({
   fillColor: '#a55'
 });
-var DRAG_EMPTY_OPACITY = 0.5;
+var DRAG_EMPTY_OPACITY = 0.7;
 var BRICK_DEFAULT_STYLE = Object.freeze({
   fillColor: '#fff',
   strokeColor: '#000'
@@ -646,12 +647,19 @@ $(document).ready(function(){
                                       Math.floor(event.point.y / l) * l,
                                       l, l);
     meshDragPath.style = DRAG_EMPTY_STYLE;
+    meshDragPath.brickInfo = {
+      x: Math.floor(meshMousePoint.x / l),
+      y: Math.floor(meshMousePoint.y / l),
+      size: 1
+    };
   };
 
   meshLayer.onMouseDrag = function(event){
     var l = calcMeshSize();
     meshLayer.activate();
-    meshDragPath.remove();
+    if(meshDragPath){
+      meshDragPath.remove();
+    }
     var dw = Math.floor(event.point.x / l) < Math.floor(meshMousePoint.x / l) ? l : 0;
     var width = (Math.floor(event.point.x / l) - Math.floor(meshMousePoint.x / l) + 1)*l - dw*2;
     var width_sign = width < 0 ? -1 : 1;

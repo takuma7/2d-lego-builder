@@ -4,10 +4,10 @@ document.oncontextmenu = document.body.oncontextmenu = function() {return false;
 paper.install(window);
 
 // sounds
-var clickSoundPlayer = new Audio('../audio/click.mp3');
-var popSoundPlayer = new Audio('../audio/pop.mp3');
-var whishSoundPlayer = new Audio('../audio/footstep.mp3');
-var woobSoundPlayer = new Audio('../audio/woob.mp3');
+var clickSoundPlayer = new Audio('audio/click.mp3');
+var popSoundPlayer = new Audio('audio/pop.mp3');
+var whishSoundPlayer = new Audio('audio/footstep.mp3');
+var woobSoundPlayer = new Audio('audio/woob.mp3');
 
 function printError(message){
   console.error(message);

@@ -694,11 +694,12 @@ $(document).ready(function(){
       y: Math.floor(meshMousePoint.y / l),
       size: width_num
     };
-    if(Math.floor(meshMousePoint.y / l) == Math.floor(event.point.y / l)){
-      meshDragPath.style = DRAG_EMPTY_STYLE;
-    }else{
-      meshDragPath.style = DRAG_EMPTY_DANGER_STYLE;
-    }
+    // if(Math.floor(meshMousePoint.y / l) == Math.floor(event.point.y / l)){
+      // meshDragPath.style = DRAG_EMPTY_STYLE;
+    // }else{
+      // meshDragPath.style = DRAG_EMPTY_DANGER_STYLE;
+    // }
+    meshDragPath.style = DRAG_EMPTY_STYLE;
     meshDragPath.opacity = DRAG_EMPTY_OPACITY;
   };
 
@@ -709,11 +710,11 @@ $(document).ready(function(){
     var y0 = Math.floor(event.point.y / l);
     var x1 = Math.floor(meshMousePoint.x / l);
     var y1 = Math.floor(meshMousePoint.y / l);
-    if(y0 != y1){
-      printError('starting y and ending y not match');
-      meshDragPath.remove();
-      return;
-    }
+    // if(y0 != y1){
+      // printError('starting y and ending y not match');
+      // meshDragPath.remove();
+      // return;
+    // }
     var x = meshDragPath.brickInfo.x;
     var y = meshDragPath.brickInfo.y;
     var size = meshDragPath.brickInfo.size;

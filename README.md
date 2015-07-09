@@ -2,7 +2,8 @@
 
 2D LEGO Builder is a system to biuld LEGO 2D models. This project is for [the final assignment from User Interface class](http://www-ui.is.s.u-tokyo.ac.jp/~takeo/course/2015/ui/assignment.htm) at the University of Tokyo.
 
-![](docs/images/t-rex.png)
+[![2D LEGO Builder on YouTube](http://img.youtube.com/vi/gA83dLDXlQA/0.jpg)](http://www.youtube.com/watch?v=gA83dLDXlQA)
+
 
 Build with [Paper.js](http://paperjs.org/)
 
